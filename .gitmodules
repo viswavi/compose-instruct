@@ -1,3 +1,0 @@
-[submodule "datasets/FollowBench"]
-	path = data/FollowBench
-	url = https://github.com/YJiangcm/FollowBench.git
