@@ -38,10 +38,10 @@ if __name__ == "__main__":
 
     if args.benchmark == "InFoBench":
         responses_by_category = generation_for_infobench(model=model)
-        metrics = evaluate_infobench(responses_by_category)
+        metrics = evaluate_infobench(model, responses_by_category)
     elif args.benchmark == "IFEval":
         responses_by_category = evaluate_infobench(model=model)
-        metrics = evaluate_ifeval(responses_by_category)
+        metrics = evaluate_ifeval(model, responses_by_category)
     elif args.benchmark == "FollowBench":
         responses_by_category = generation_for_followbench(model=model)
-        metrics = evaluate_followbench(responses_by_category)
+        metrics = evaluate_followbench(model, responses_by_category)

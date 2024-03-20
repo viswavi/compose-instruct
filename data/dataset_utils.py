@@ -20,14 +20,18 @@ def generation_for_ifeval(model):
     responses_by_category = {}
     return responses_by_category
 
-def generation_for_followbench(model, data_path = "FollowBench/data"):
+def generation_for_followbench(model, data_path = "data/FollowBench/data"):
     '''
     model must have at least a `respond` method and a `name` attribute
     '''
     constraint_types = ['content', 'situation', 'style', 'format', 'example', 'mixed']
-    api_input_path = "api_input"
-    api_output_path = "api_output"
+
+    model_name_escaped = model.name.replace("-", "_").replace(".", "_")
+
+    api_input_path = f"data/FollowBench/api_input_{model_name_escaped}"
+    api_output_path = f"data/FollowBench/api_output_{model_name_escaped}"
     os.makedirs(api_input_path, exist_ok=True)
+    os.makedirs(api_output_path, exist_ok=True)
     temperature = 0.0
     repetition_penalty = 1.0
     max_new_tokens = 2048
@@ -54,10 +58,13 @@ def generation_for_followbench(model, data_path = "FollowBench/data"):
             # Build the prompt with a conversation template
             msg = data[i]['prompt_new']
 
-            response = model.respond(msg)
+            response = model.respond(msg, constraint_type)
             response_dict = response.choices[0]
 
-            data[i]['choices'] = [{'message': response_dict.message.to_dict()}]
+            if hasattr(response_dict.message, 'to_dict'):
+                data[i]['choices'] = [{'message': response_dict.message.to_dict()}]
+            else:
+                data[i]['choices'] = [{'message': response_dict.message.json()}]
 
         model_name_escaped = model.name.replace("-", "_").replace(".", "_")
         # save file
@@ -73,15 +80,22 @@ def evaluate_infobench(model, responses_by_type):
 def evaluate_ifeval(model, responses_by_type):
     raise NotImplementedError
 
-def evaluate_followbench(model, responses_by_type, data_path = "FollowBench/data"):
+def evaluate_followbench(model, responses_by_type, data_path = "data/FollowBench/data"):
 
     max_tokens = 1024
     model_path = "gpt-3.5-turbo"
-    api_output_path = "api_output"
+
+
+    model_name_escaped = model.name.replace("-", "_").replace(".", "_")
+    api_output_path = f"data/FollowBench/api_output_{model_name_escaped}"
+    os.makedirs(api_output_path, exist_ok=True)
+
+
+
     constraint_types = ['content', 'situation', 'style', 'format', 'example', 'mixed']
-    gpt4_discriminative_eval_input_path = "gpt4_discriminative_eval_input"
-    data_gpt4_discriminative_eval_input_path = "data_gpt4_discriminative_eval_input"
-    gpt4_discriminative_eval_output_path = "gpt4_discriminative_eval_output"
+    gpt4_discriminative_eval_input_path = f"{model_name_escaped}_discriminative_eval_input"
+    data_gpt4_discriminative_eval_input_path = f"data_{model_name_escaped}_discriminative_eval_input"
+    gpt4_discriminative_eval_output_path = f"{model_name_escaped}_discriminative_eval_output"
 
     ### convert api_output to LLM_based_eval_input
 
@@ -91,7 +105,7 @@ def evaluate_followbench(model, responses_by_type, data_path = "FollowBench/data
                                         data_path=data_path,
                                         api_output_path=api_output_path,
                                         constraint_type=constraint_type,
-                                        model_name=model.name,
+                                        model_name=model.name.replace("-", "_").replace(".", "_"),
                                         data_gpt4_discriminative_eval_input_path=data_gpt4_discriminative_eval_input_path,
                                         gpt4_discriminative_eval_input_path=gpt4_discriminative_eval_input_path
                                         )
@@ -102,19 +116,18 @@ def evaluate_followbench(model, responses_by_type, data_path = "FollowBench/data
 
     for constraint_type in constraint_types:
 
-        eval_input = get_json_list(os.path.join(gpt4_discriminative_eval_input_path, "{0}_{1}_constraint.jsonl".format(model_path, constraint_type)))
+        eval_input = get_json_list(os.path.join(gpt4_discriminative_eval_input_path, "{0}_{1}_constraint.jsonl".format(model_path.replace("-", "_").replace(".", "_"), constraint_type)))
 
-        with open(os.path.join(gpt4_discriminative_eval_output_path, "{0}_{1}_constraint.jsonl".format(model_path, constraint_type)), 'w') as output_file:
+        with open(os.path.join(gpt4_discriminative_eval_output_path, "{0}_{1}_constraint.jsonl".format(model_path.replace("-", "_").replace(".", "_"), constraint_type)), 'w') as output_file:
             for idx in tqdm(range(len(eval_input))):
                 response = get_eval(eval_input[idx]['prompt_new'], max_tokens)
                 output_file.write(json.dumps({'prompt_new': eval_input[idx]['prompt_new'], "choices": [{"message": {"content": response}}]}) + '\n')
 
 
-    model_paths = "gpt_3_5_turbo"
-    api_output_path = "api_output"
-    data_gpt4_discriminative_eval_input_path = "data_gpt4_discriminative_eval_input"
-    gpt4_discriminative_eval_output_path = "gpt4_discriminative_eval_output"
-    evaluation_result_path = "evaluation_result"
+    model_paths = model_name_escaped
+    data_gpt4_discriminative_eval_input_path = f"data_{model_name_escaped}_discriminative_eval_input"
+    gpt4_discriminative_eval_output_path = f"{model_name_escaped}_discriminative_eval_output"
+    evaluation_result_path = f"evaluation_result_{model_name_escaped}"
 
     ### rule-based evaluation
     save_evaluate_example_constraint(
